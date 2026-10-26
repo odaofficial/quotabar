@@ -2,3 +2,19 @@
 dist/
 .DS_Store
 .swiftpm/
+
+# Local credentials and signing material must never enter source control.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+auth.json
+credentials.json
+.cookies
+cookies.txt
+*.keychain
+*.keychain-db
+__pycache__/
