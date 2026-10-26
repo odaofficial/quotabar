@@ -98,7 +98,7 @@ struct PopoverView: View {
                 }
                 .frame(maxWidth: .infinity).padding(.top, 145)
             } else {
-                LazyVStack(spacing: 8) {
+                VStack(spacing: 8) {
                     ForEach(Provider.allCases) { provider in
                         if model.enabled.contains(provider) {
                             ProviderCard(provider: provider, state: model.states[provider] ?? ProviderState(), now: model.now,
@@ -169,11 +169,18 @@ private struct ProviderCard: View {
     let state: ProviderState
     let now: Date
     let connect: () -> Void
-    @State private var expanded = false
-    let initiallyExpanded: Bool
+    @State private var expanded: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
+
+    init(provider: Provider, state: ProviderState, now: Date, connect: @escaping () -> Void, initiallyExpanded: Bool) {
+        self.provider = provider
+        self.state = state
+        self.now = now
+        self.connect = connect
+        _expanded = State(initialValue: initiallyExpanded)
+    }
 
     private var symbol: String {
         switch provider {
@@ -281,7 +288,6 @@ private struct ProviderCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(PanelSurface.card(colorScheme), in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor).opacity(contrast == .increased ? 1 : 0.5), lineWidth: 0.5))
-        .onAppear { expanded = initiallyExpanded }
     }
 }
 
