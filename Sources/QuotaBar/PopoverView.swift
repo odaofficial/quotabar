@@ -28,8 +28,12 @@ struct PopoverView: View {
         guard let date = model.enabled.compactMap({ model.states[$0]?.checkedAt }).max() else {
             return "Click Refresh to check usage"
         }
+        let stale = model.enabled.contains { provider in
+            model.states[provider]?.snapshot != nil && model.states[provider]?.error != nil
+        }
         let failed = model.enabled.contains { model.states[$0]?.error != nil }
-        return "Checked \(date.formatted(date: .omitted, time: .shortened))\(failed ? " · some data stale" : "")"
+        let status = stale ? " · some data stale" : (failed ? " · check issues" : "")
+        return "Checked \(date.formatted(date: .omitted, time: .shortened))\(status)"
     }
 
     var body: some View {
@@ -110,7 +114,7 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text(model.isDemo && model.demoScenario != .initial ? "Sample data" : checkText)
+            Text(checkText)
                 .foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 8)
             PanelIconButton(symbol: "power", title: "Quit QuotaBar", hint: "⌘Q") {

@@ -14,7 +14,7 @@ struct ProviderState {
 }
 
 enum DemoScenario: String {
-    case connected, mixed, empty, expanded, initial
+    case connected, mixed, empty, expanded, initial, failed
 }
 
 @MainActor final class AppModel: ObservableObject {
@@ -39,6 +39,10 @@ enum DemoScenario: String {
             case .empty: enabled = []
             case .initial:
                 for provider in Provider.allCases { states[provider] = ProviderState() }
+            case .failed:
+                for provider in Provider.allCases {
+                    states[provider] = ProviderState(error: "Could not reach the provider.", checkedAt: .now)
+                }
             case .mixed:
                 var codex = states[.codex]!
                 codex.error = "Could not reach the provider."

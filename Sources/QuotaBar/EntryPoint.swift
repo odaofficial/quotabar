@@ -141,7 +141,7 @@ import SwiftUI
             var scenario: DemoScenario = .connected
             if let scenarioIndex = args.firstIndex(of: "--scenario") {
                 guard args.indices.contains(scenarioIndex + 1), let selected = DemoScenario(rawValue: args[scenarioIndex + 1]) else {
-                    fputs("scenario must be connected, mixed, empty, expanded, or initial\n", stderr); exit(2)
+                    fputs("scenario must be connected, mixed, empty, expanded, initial, or failed\n", stderr); exit(2)
                 }
                 scenario = selected
             }
