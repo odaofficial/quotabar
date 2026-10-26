@@ -31,7 +31,10 @@ public enum ProviderClient {
             catch ProviderError.http(let code, _) where provider == .claude && (code == 400 || code == 403) {
                 data = try await request(URL(string: "https://api.anthropic.com/api/oauth/usage")!, provider: provider, credential: credential)
             }
-            let snapshot = try UsageParser.parse(provider, data: data, fetchedAt: .now)
+            let parsed = try UsageParser.parse(provider, data: data, fetchedAt: .now)
+            let snapshot = UsageSnapshot(provider: provider,
+                                         plan: provider == .claude ? (credential.planLabel ?? parsed.plan) : parsed.plan,
+                                         windows: parsed.windows, extras: parsed.extras, fetchedAt: parsed.fetchedAt)
             return (snapshot, credential.identity)
         } catch let error as ProviderError { throw error }
         catch { throw ProviderError.network }

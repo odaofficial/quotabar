@@ -1,5 +1,5 @@
 import XCTest
-@testable import OdaLimitsCore
+@testable import QuotaBarCore
 
 final class ParserTests: XCTestCase {
     func testCodexPreservesEveryBucketAndUnknownPercent() throws {
@@ -16,6 +16,12 @@ final class ParserTests: XCTestCase {
         XCTAssertEqual(result.windows.count, 1)
         XCTAssertEqual(result.windows[0].usedPercent, 12.5)
         XCTAssertEqual(result.extras.count, 2)
+    }
+    func testClaudeUsedWindowsKeepProviderLabelsAndValues() throws {
+        let data = Data(#"{"five_hour":{"utilization":9},"seven_day":{"utilization":71}}"#.utf8)
+        let result = try UsageParser.parse(.claude, data: data, fetchedAt: .now)
+        XCTAssertEqual(result.windows.map(\.title), ["Session limit", "Weekly · all models"])
+        XCTAssertEqual(result.windows.map(\.usedPercent), [9, 71])
     }
     func testCursorPercentIsAlreadyPercentageAndCentsAreMoney() throws {
         let data = Data(#"{"membershipType":"pro","billingCycleEnd":"2026-11-01T00:00:00Z","individualUsage":{"plan":{"used":125,"limit":2000,"totalPercentUsed":6.25},"onDemand":{"enabled":true,"used":40,"limit":500}}}"#.utf8)
@@ -45,7 +51,18 @@ final class DisplayTests: XCTestCase {
         XCTAssertEqual(DisplayText.reset(Date(timeIntervalSince1970: 10), now: Date(timeIntervalSince1970: 20)), "Awaiting refresh")
     }
     func testMissingPercentRemainsUnknown() {
-        XCTAssertEqual(DisplayText.percent(nil), "Unknown")
+        XCTAssertEqual(DisplayText.used(nil), "Unknown")
+        XCTAssertEqual(DisplayText.remaining(nil), "Unknown")
+    }
+    func testUsedAndRemainingAreIndependentAndPrecise() {
+        XCTAssertEqual(DisplayText.used(9), "9%")
+        XCTAssertEqual(DisplayText.remaining(9), "91%")
+        XCTAssertEqual(DisplayText.used(71), "71%")
+        XCTAssertEqual(DisplayText.remaining(71), "29%")
+        XCTAssertEqual(DisplayText.used(0.0004), "<0.001%")
+        XCTAssertEqual(DisplayText.remaining(0.0004), ">99.999%")
+        XCTAssertEqual(DisplayText.used(99.9996), ">99.999%")
+        XCTAssertEqual(DisplayText.remaining(99.9996), "<0.001%")
     }
     func testGrokLegacyResetUnderConfig() throws {
         let json = Data(#"{"config":{"billingPeriodEnd":"2026-11-01T00:00:00Z","currentPeriod":{"type":"USAGE_PERIOD_TYPE_MONTHLY"}}}"#.utf8)

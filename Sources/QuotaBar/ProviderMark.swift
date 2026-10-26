@@ -1,5 +1,5 @@
 import AppKit
-import OdaLimitsCore
+import QuotaBarCore
 
 // SwiftPM keeps previews self-contained; packaged apps read the same SVGs from Contents/Resources.
 enum ProviderMark {

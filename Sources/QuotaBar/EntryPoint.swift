@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import OdaLimitsCore
+import QuotaBarCore
 import SwiftUI
 
 @MainActor final class MenuBarDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
@@ -21,10 +21,10 @@ import SwiftUI
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
-            button.image = OdaMark.image
+            button.image = QuotaMark.image
             button.action = #selector(togglePopover)
             button.target = self
-            button.toolTip = "Oda Limits"
+            button.toolTip = "QuotaBar"
         }
         popover.behavior = .transient
         popover.delegate = self
@@ -129,13 +129,13 @@ import SwiftUI
     }
 }
 
-@main enum OdaLimitsMain {
+@main enum QuotaBarMain {
     @MainActor static func main() async {
         let args = Array(CommandLine.arguments.dropFirst())
         let arguments = Set(args)
         if arguments.contains("--diagnostics") { await diagnostics(); return }
         if let index = args.firstIndex(of: "--render-demo") {
-            guard args.indices.contains(index + 1) else { fputs("usage: OdaLimits --render-demo <png-path>\n", stderr); exit(2) }
+            guard args.indices.contains(index + 1) else { fputs("usage: QuotaBar --render-demo <png-path>\n", stderr); exit(2) }
             let appearance = args.firstIndex(of: "--appearance").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } ?? "light"
             guard ["light", "dark"].contains(appearance) else { fputs("appearance must be light or dark\n", stderr); exit(2) }
             var scenario: DemoScenario = .connected

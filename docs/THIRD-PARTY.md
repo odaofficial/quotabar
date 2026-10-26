@@ -1,6 +1,6 @@
 # Third-party visual assets
 
-Oda Limits uses provider marks solely to identify the corresponding services in its usage panel. Provider names and marks are trademarks of their respective owners; Oda Limits is not affiliated with or endorsed by them.
+QuotaBar uses provider marks solely to identify the corresponding services in its usage panel. Provider names and marks are trademarks of their respective owners; QuotaBar is not affiliated with or endorsed by them.
 
 | Mark | Source | License |
 | --- | --- | --- |

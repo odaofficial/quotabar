@@ -58,7 +58,7 @@ public enum ProviderError: Error, LocalizedError, Sendable {
         switch self {
         case .disconnected(let instruction): instruction
         case .expired, .http(401, _), .http(403, _): "Session expired. Sign in through the provider app, then refresh."
-        case .http(429, _): "Rate limited. Oda Limits will retry later."
+        case .http(429, _): "Rate limited. Try Refresh again later."
         case .http: "Provider is temporarily unavailable."
         case .invalidResponse: "Provider returned an unrecognized usage response."
         case .network: "Could not reach the provider."
@@ -82,10 +82,17 @@ public enum DisplayText {
         if hours < 24 { return "Resets in \(hours)h \(minutes % 60)m" }
         return "Resets in \(hours / 24)d \(hours % 24)h"
     }
-    public static func percent(_ value: Double?) -> String {
-        guard let value else { return "Unknown" }
-        let remaining = 100 - value
-        if remaining > 99.9 && remaining < 100 { return String(format: "%.3f%%", remaining) }
-        return String(format: "%.1f%%", remaining)
+    private static func formattedPercent(_ value: Double?) -> String {
+        guard let value, value.isFinite, (0...100).contains(value) else { return "Unknown" }
+        if value > 0 && value < 0.001 { return "<0.001%" }
+        if value < 100 && value > 99.999 { return ">99.999%" }
+        let fixed = String(format: "%.3f", value)
+        return fixed.replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\\.$", with: "", options: .regularExpression) + "%"
     }
+    public static func used(_ usedPercent: Double?) -> String { formattedPercent(usedPercent) }
+    public static func remaining(_ usedPercent: Double?) -> String {
+        formattedPercent(usedPercent.map { 100 - $0 })
+    }
+    public static func percent(_ usedPercent: Double?) -> String { remaining(usedPercent) }
 }

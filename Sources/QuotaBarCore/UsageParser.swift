@@ -81,7 +81,7 @@ public enum UsageParser {
         return .init(provider: .codex, plan: safeLabel(json["plan_type"]), windows: windows, extras: extras, fetchedAt: fetched)
     }
     private static func claude(_ json: [String: Any], _ fetched: Date) -> UsageSnapshot {
-        let keys = [("five_hour", "5-hour"), ("seven_day", "Weekly"), ("seven_day_sonnet", "Sonnet weekly"), ("seven_day_opus", "Opus weekly")]
+        let keys = [("five_hour", "Session limit"), ("seven_day", "Weekly · all models"), ("seven_day_sonnet", "Sonnet weekly"), ("seven_day_opus", "Opus weekly")]
         var windows: [UsageWindow] = keys.compactMap { key, label in
             guard let value = dict(json[key]) else { return nil }
             return .init(title: label, usedPercent: percent(value["utilization"]), resetsAt: iso(value["resets_at"]))

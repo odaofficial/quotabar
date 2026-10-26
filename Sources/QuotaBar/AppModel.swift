@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import OdaLimitsCore
+import QuotaBarCore
 import ServiceManagement
 
 struct ProviderState {
@@ -26,7 +26,6 @@ enum DemoScenario: String {
     @Published var enabled: Set<Provider>
     let isDemo: Bool
     let demoScenario: DemoScenario
-    private var lastManualRefresh: Date = .distantPast
 
     init(demo: Bool, scenario: DemoScenario = .connected) {
         isDemo = demo
@@ -44,9 +43,9 @@ enum DemoScenario: String {
                 var codex = states[.codex]!
                 codex.error = "Could not reach the provider."
                 states[.codex] = codex
-                states[.claude] = ProviderState(snapshot: .init(provider: .claude, plan: "Pro", windows: [
-                    .init(title: "5-hour", usedPercent: nil, resetsAt: nil),
-                    .init(title: "Weekly", usedPercent: 100, resetsAt: Date().addingTimeInterval(3_600 * 24 * 3))
+                states[.claude] = ProviderState(snapshot: .init(provider: .claude, plan: "Max (20x)", windows: [
+                    .init(title: "Session limit", usedPercent: nil, resetsAt: nil),
+                    .init(title: "Weekly · all models", usedPercent: 100, resetsAt: Date().addingTimeInterval(3_600 * 24 * 3))
                 ], extras: [], fetchedAt: .now), checkedAt: .now)
                 states[.cursor] = ProviderState(error: "Sign in to the Cursor app.", checkedAt: .now)
             }
@@ -65,10 +64,6 @@ enum DemoScenario: String {
     }
     func refresh(claudePrompt: Bool = false, only target: Provider? = nil) {
         guard !isDemo, !isRefreshing, !enabled.isEmpty else { return }
-        if !claudePrompt {
-            guard Date().timeIntervalSince(lastManualRefresh) >= 30 else { return }
-            lastManualRefresh = .now
-        }
         now = .now
         isRefreshing = true
         Task { @MainActor in
@@ -90,7 +85,13 @@ enum DemoScenario: String {
                     }
                     state.identity = credential.identity
                     states[provider] = state
-                    if !RefreshPolicy.canAttempt(now: .now, manual: true, retryAt: state.rateLimitedUntil) { continue }
+                    if !RefreshPolicy.canAttempt(now: .now, manual: true, retryAt: state.rateLimitedUntil) {
+                        if let retry = state.rateLimitedUntil {
+                            state.error = "Rate limited. Try Refresh after \(retry.formatted(date: .abbreviated, time: .shortened))."
+                            states[provider] = state
+                        }
+                        continue
+                    }
                     state.checkedAt = .now
                     let (snapshot, _) = try await ProviderClient.fetch(provider, credential: credential)
                     validatingIdentity = true
@@ -119,7 +120,10 @@ enum DemoScenario: String {
                     state.failures = min(state.failures + 1, 6)
                     let backoff = min(300 * pow(2, Double(state.failures - 1)), 3600)
                     state.nextAllowed = max(Date().addingTimeInterval(backoff), error.retryAfter ?? Date())
-                    if case .http(429, _) = error { state.rateLimitedUntil = state.nextAllowed }
+                    if case .http(429, _) = error {
+                        state.rateLimitedUntil = state.nextAllowed
+                        state.error = "Rate limited. Try Refresh after \(state.nextAllowed.formatted(date: .abbreviated, time: .shortened))."
+                    }
                 } catch {
                     if !credentialLoaded || validatingIdentity {
                         state.snapshot = nil
@@ -154,7 +158,18 @@ enum DemoScenario: String {
             if SMAppService.mainApp.status == .enabled || SMAppService.mainApp.status == .requiresApproval {
                 UserDefaults.standard.set(true, forKey: "loginSetupDone")
             }
+        } else if UserDefaults.standard.string(forKey: "loginBundlePath") != bundle.path,
+                  (SMAppService.mainApp.status == .enabled || UserDefaults.standard.bool(forKey: "loginMigrationPending")) {
+            do {
+                if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+                try SMAppService.mainApp.register()
+                UserDefaults.standard.set(false, forKey: "loginMigrationPending")
+            } catch {
+                UserDefaults.standard.set(true, forKey: "loginMigrationPending")
+                registrationError = loginError(error)
+            }
         }
+        if registrationError == nil { UserDefaults.standard.set(bundle.path, forKey: "loginBundlePath") }
         updateLoginStatus()
         if let registrationError { loginStatus = registrationError }
     }
@@ -172,6 +187,9 @@ enum DemoScenario: String {
         do {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
+            UserDefaults.standard.set(true, forKey: "loginSetupDone")
+            UserDefaults.standard.set(Bundle.main.bundlePath, forKey: "loginBundlePath")
+            UserDefaults.standard.set(false, forKey: "loginMigrationPending")
             updateLoginStatus()
         } catch { loginStatus = loginError(error) }
     }
@@ -182,14 +200,16 @@ enum DemoScenario: String {
         return "Login registration failed (\(safeDomain) \(nsError.code))"
     }
     private func seedDemo() {
-        let soon = Date().addingTimeInterval(3_600 * 4)
-        let weekly = Date().addingTimeInterval(3_600 * 24 * 3)
+        let soon = now.addingTimeInterval(3_600 * 4 - 30)
+        let weekly = now.addingTimeInterval(3_600 * 24 * 3 - 30)
+        let claudeSoon = now.addingTimeInterval(3_600 + 46 * 60 + 30)
+        let claudeWeekly = now.addingTimeInterval(16 * 3_600 + 6 * 60 + 30)
         states[.codex] = ProviderState(snapshot: .init(provider: .codex, plan: "Plus", windows: [
             .init(title: "5-hour", usedPercent: 42, resetsAt: soon), .init(title: "Weekly", usedPercent: 18, resetsAt: weekly),
             .init(title: "Code review · Weekly", usedPercent: nil, resetsAt: weekly)
         ], extras: [.init("Free resets", "2"), .init("Applicable now", "0")], fetchedAt: .now), checkedAt: .now)
-        states[.claude] = ProviderState(snapshot: .init(provider: .claude, plan: "Pro", windows: [
-            .init(title: "5-hour", usedPercent: 64, resetsAt: soon), .init(title: "Weekly", usedPercent: 29, resetsAt: weekly)
+        states[.claude] = ProviderState(snapshot: .init(provider: .claude, plan: "Max (20x)", windows: [
+            .init(title: "Session limit", usedPercent: 9, resetsAt: claudeSoon), .init(title: "Weekly · all models", usedPercent: 71, resetsAt: claudeWeekly)
         ], extras: [], fetchedAt: .now), checkedAt: .now)
         states[.cursor] = ProviderState(snapshot: .init(provider: .cursor, plan: "Pro", windows: [
             .init(title: "Plan cycle", usedPercent: 7.25, resetsAt: weekly)
