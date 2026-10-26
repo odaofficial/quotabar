@@ -1,5 +1,5 @@
 import XCTest
-@testable import OdaLimitsCore
+@testable import QuotaBarCore
 
 final class CredentialTests: XCTestCase {
     func testCodexCredentialSelection() throws {
@@ -13,6 +13,16 @@ final class CredentialTests: XCTestCase {
         XCTAssertEqual(try CredentialParser.claude(json, now: .now).token, "synthetic")
         let expired = Data(#"{"claudeAiOauth":{"accessToken":"synthetic","expiresAt":1}}"#.utf8)
         XCTAssertThrowsError(try CredentialParser.claude(expired, now: .now))
+    }
+    func testClaudePlanUsesConsistentCredentialTier() throws {
+        let max20 = Data(#"{"claudeAiOauth":{"accessToken":"synthetic","subscriptionType":"max","rateLimitTier":"default_claude_max_20x"}}"#.utf8)
+        XCTAssertEqual(try CredentialParser.claude(max20, now: .now).planLabel, "Max (20x)")
+        let max5 = Data(#"{"claudeAiOauth":{"accessToken":"synthetic","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}"#.utf8)
+        XCTAssertEqual(try CredentialParser.claude(max5, now: .now).planLabel, "Max (5x)")
+        let inconsistent = Data(#"{"claudeAiOauth":{"accessToken":"synthetic","subscriptionType":"pro","rateLimitTier":"default_claude_max_20x"}}"#.utf8)
+        XCTAssertEqual(try CredentialParser.claude(inconsistent, now: .now).planLabel, "Pro")
+        let unknown = Data(#"{"claudeAiOauth":{"accessToken":"synthetic","subscriptionType":"enterprise","rateLimitTier":"unknown"}}"#.utf8)
+        XCTAssertNil(try CredentialParser.claude(unknown, now: .now).planLabel)
     }
     func testCursorJWTIdentityAndExpiry() throws {
         let payload = Data(#"{"sub":"auth|12345","exp":9999999999}"#.utf8).base64EncodedString().replacingOccurrences(of: "=", with: "")

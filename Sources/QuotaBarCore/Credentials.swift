@@ -7,8 +7,9 @@ public struct ProviderCredential: Sendable {
     public let token: String
     public let accountID: String?
     public let userID: String?
-    public init(token: String, accountID: String? = nil, userID: String? = nil) {
-        self.token = token; self.accountID = accountID; self.userID = userID
+    public let planLabel: String?
+    public init(token: String, accountID: String? = nil, userID: String? = nil, planLabel: String? = nil) {
+        self.token = token; self.accountID = accountID; self.userID = userID; self.planLabel = planLabel
     }
     public var identity: String {
         if let accountID { return accountID }
@@ -49,7 +50,20 @@ public enum CredentialParser {
             throw ProviderError.disconnected("Run claude auth login in Terminal, then refresh.")
         }
         if let expires = expiry(oauth["expiresAt"]), expires <= now { throw ProviderError.expired }
-        return .init(token: token)
+        let subscription = nonempty(oauth["subscriptionType"])?.lowercased()
+        let tier = nonempty(oauth["rateLimitTier"])?.lowercased()
+        let plan: String?
+        switch subscription {
+        case "max":
+            switch tier {
+            case "default_claude_max_20x": plan = "Max (20x)"
+            case "default_claude_max_5x": plan = "Max (5x)"
+            default: plan = "Max"
+            }
+        case "pro": plan = "Pro"
+        default: plan = nil
+        }
+        return .init(token: token, planLabel: plan)
     }
     public static func cursor(_ token: String, now: Date) throws -> ProviderCredential {
         let parts = token.split(separator: ".", omittingEmptySubsequences: false)
