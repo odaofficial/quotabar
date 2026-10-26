@@ -48,7 +48,7 @@ final class DisplayTests: XCTestCase {
         XCTAssertEqual(DisplayText.percent(nil), "Unknown")
     }
     func testGrokLegacyResetUnderConfig() throws {
-        let json = Data(#"{"config":{"billingPeriodEnd":"2026-11-01T00:00:00Z","currentPeriod":{"type":"monthly"}}}"#.utf8)
+        let json = Data(#"{"config":{"billingPeriodEnd":"2026-11-01T00:00:00Z","currentPeriod":{"type":"USAGE_PERIOD_TYPE_MONTHLY"}}}"#.utf8)
         let result = try UsageParser.parse(.grok, data: json, fetchedAt: .now)
         XCTAssertEqual(result.windows.first?.title, "Monthly")
         XCTAssertNotNil(result.windows.first?.resetsAt)
@@ -86,10 +86,15 @@ final class AdditionalContractTests: XCTestCase {
         XCTAssertEqual(result.plan, "supergrok")
     }
     func testCursorTeamOnDemandPool() throws {
-        let json = Data(#"{"teamUsage":{"onDemand":{"used":100,"limit":1000,"totalPercentUsed":10}},"billingCycleEnd":"2026-11-01T00:00:00Z"}"#.utf8)
+        let json = Data(#"{"teamUsage":{"onDemand":{"used":100,"limit":1000}},"billingCycleEnd":"2026-11-01T00:00:00Z"}"#.utf8)
         let result = try UsageParser.parse(.cursor, data: json, fetchedAt: .now)
         XCTAssertEqual(result.windows.first?.title, "Team on-demand")
         XCTAssertEqual(result.windows.first?.usedPercent, 10)
+    }
+    func testDisabledCursorTeamOnDemandIsHidden() throws {
+        let json = Data(#"{"individualUsage":{"plan":{"totalPercentUsed":15}},"teamUsage":{"onDemand":{"enabled":false,"used":100,"limit":1000}}}"#.utf8)
+        let result = try UsageParser.parse(.cursor, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.windows.map(\.title), ["Plan cycle"])
     }
     func testRateLimitCooldownAppliesToManualRefresh() {
         let limit = Date(timeIntervalSince1970: 1000)

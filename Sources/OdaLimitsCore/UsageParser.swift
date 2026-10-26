@@ -38,6 +38,10 @@ public enum UsageParser {
         return formatter.date(from: s) ?? ISO8601DateFormatter().date(from: s)
     }
     private static func epoch(_ value: Any?) -> Date? { number(value).map(Date.init(timeIntervalSince1970:)) }
+    private static func ratioPercent(_ used: Any?, _ limit: Any?) -> Double? {
+        guard let used = number(used), let limit = number(limit), limit > 0 else { return nil }
+        return percent(used / limit * 100)
+    }
     private static func money(_ value: Any?) -> String? {
         guard let cents = number(value) else { return nil }
         return String(format: "$%.2f", cents / 100)
@@ -108,8 +112,7 @@ public enum UsageParser {
             if let used = money(plan["used"]), let limit = money(plan["limit"]) { extras.append(.init("Plan used", "\(used) of \(limit)")) }
         }
         if let onDemand = dict(individual["onDemand"]), onDemand["enabled"] as? Bool == true {
-            let used = number(onDemand["used"]), limit = number(onDemand["limit"])
-            let pct = (used != nil && limit != nil && limit! > 0) ? percent(used! / limit! * 100) : nil
+            let pct = percent(onDemand["totalPercentUsed"]) ?? ratioPercent(onDemand["used"], onDemand["limit"])
             windows.append(.init(title: "On-demand", usedPercent: pct, resetsAt: reset))
             if let amount = money(onDemand["used"]) { extras.append(.init("On-demand used", amount)) }
         }
@@ -117,8 +120,9 @@ public enum UsageParser {
             if let pooled = dict(team["pooled"]) {
                 windows.append(.init(title: "Team pool", usedPercent: percent(pooled["totalPercentUsed"]), resetsAt: reset))
             }
-            if let onDemand = dict(team["onDemand"]) {
-                windows.append(.init(title: "Team on-demand", usedPercent: percent(onDemand["totalPercentUsed"]), resetsAt: reset))
+            if let onDemand = dict(team["onDemand"]), onDemand["enabled"] as? Bool != false {
+                let pct = percent(onDemand["totalPercentUsed"]) ?? ratioPercent(onDemand["used"], onDemand["limit"])
+                windows.append(.init(title: "Team on-demand", usedPercent: pct, resetsAt: reset))
                 if let used = money(onDemand["used"]), let limit = money(onDemand["limit"]) { extras.append(.init("Team on-demand", "\(used) of \(limit)")) }
             }
         }
@@ -127,7 +131,12 @@ public enum UsageParser {
     private static func grok(_ json: [String: Any], _ fetched: Date) -> UsageSnapshot {
         let config = dict(json["config"]) ?? [:]
         let period = dict(config["currentPeriod"]) ?? [:]
-        let type = safeLabel(period["type"])?.capitalized ?? "Current period"
+        let type: String
+        switch string(period["type"])?.uppercased() {
+        case "WEEKLY", "USAGE_PERIOD_TYPE_WEEKLY": type = "Weekly"
+        case "MONTHLY", "USAGE_PERIOD_TYPE_MONTHLY": type = "Monthly"
+        default: type = "Current period"
+        }
         let reset = iso(period["end"]) ?? iso(config["billingPeriodEnd"])
         let window = UsageWindow(title: type, usedPercent: percent(config["creditUsagePercent"]), resetsAt: reset)
         var extras: [UsageExtra] = []
