@@ -21,8 +21,19 @@ final class CredentialTests: XCTestCase {
         XCTAssertEqual(result.userID, "12345")
         XCTAssertEqual(result.token, jwt)
     }
+    func testClaudeIdentityUsesFullToken() {
+        let first = ProviderCredential(token: "sk-ant-oat01-one")
+        let second = ProviderCredential(token: "sk-ant-oat01-two")
+        XCTAssertNotEqual(first.identity, second.identity)
+        XCTAssertFalse(first.identity.contains("sk-ant"))
+    }
+    func testGrokFractionalISOExpiryIsEnforced() throws {
+        let json = Data(#"{"https://auth.x.ai::a":{"key":"synthetic","expires_at":"2026-01-10T11:23:05.098865Z","user_id":"one"}}"#.utf8)
+        XCTAssertEqual(try CredentialParser.grok(json, now: Date(timeIntervalSince1970: 1_700_000_000)).userID, "one")
+        XCTAssertThrowsError(try CredentialParser.grok(json, now: Date(timeIntervalSince1970: 1_800_000_000)))
+    }
     func testGrokRejectsAmbiguousAccounts() throws {
-        let json = Data(#"{"https://auth.x.ai::a":{"bearer":"a","expires_at":9999999999,"user_id":"1"},"https://auth.x.ai::b":{"bearer":"b","expires_at":9999999999,"user_id":"2"}}"#.utf8)
+        let json = Data(#"{"https://auth.x.ai::a":{"key":"a","expires_at":9999999999,"user_id":"1"},"https://auth.x.ai::b":{"key":"b","expires_at":9999999999,"user_id":"2"}}"#.utf8)
         XCTAssertThrowsError(try CredentialParser.grok(json, now: .now)) { error in
             guard case ProviderError.ambiguousAccount = error else { return XCTFail("Wrong error") }
         }

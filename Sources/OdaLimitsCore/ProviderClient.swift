@@ -15,6 +15,9 @@ public enum ProviderClient {
         let credential = try await Task.detached(priority: .utility) {
             try CredentialReader.load(provider, allowKeychainPrompt: allowKeychainPrompt)
         }.value
+        return try await fetch(provider, credential: credential)
+    }
+    public static func fetch(_ provider: Provider, credential: ProviderCredential) async throws -> (UsageSnapshot, String) {
         let primary: URL
         switch provider {
         case .codex: primary = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
@@ -25,7 +28,7 @@ public enum ProviderClient {
         do {
             let data: Data
             do { data = try await request(primary, provider: provider, credential: credential) }
-            catch ProviderError.http(400, _) where provider == .claude {
+            catch ProviderError.http(let code, _) where provider == .claude && (code == 400 || code == 403) {
                 data = try await request(URL(string: "https://api.anthropic.com/api/oauth/usage")!, provider: provider, credential: credential)
             }
             let snapshot = try UsageParser.parse(provider, data: data, fetchedAt: .now)
@@ -65,10 +68,7 @@ public enum ProviderClient {
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.url?.host == url.host else { throw ProviderError.invalidResponse }
         if http.statusCode != 200 {
-            let retry: Date? = http.value(forHTTPHeaderField: "Retry-After").flatMap { value in
-                if let seconds = TimeInterval(value) { return Date().addingTimeInterval(min(max(seconds, 0), 3600)) }
-                return nil
-            }
+            let retry = http.value(forHTTPHeaderField: "Retry-After").flatMap { RetryAfterParser.parse($0) }
             throw ProviderError.http(http.statusCode, retryAfter: retry)
         }
         if let length = http.expectedContentLength as Int64?, length > 524_288 { throw ProviderError.invalidResponse }

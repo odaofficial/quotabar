@@ -15,7 +15,7 @@ public enum Provider: String, CaseIterable, Sendable, Identifiable {
     public var loginHelp: String {
         switch self {
         case .codex: "Run codex login in Terminal."
-        case .claude: "Run claude login in Terminal, or allow Keychain access below."
+        case .claude: "Run claude auth login in Terminal, or allow Keychain access below."
         case .cursor: "Sign in to the Cursor app."
         case .grok: "Sign in through Grok CLI."
         }
@@ -84,6 +84,8 @@ public enum DisplayText {
     }
     public static func percent(_ value: Double?) -> String {
         guard let value else { return "Unknown" }
-        return String(format: "%.1f%%", 100 - value)
+        let remaining = 100 - value
+        if remaining > 99.9 && remaining < 100 { return String(format: "%.3f%%", remaining) }
+        return String(format: "%.1f%%", remaining)
     }
 }

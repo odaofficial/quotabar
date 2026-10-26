@@ -30,12 +30,82 @@ final class ParserTests: XCTestCase {
         XCTAssertEqual(result.extras.first?.value, "$12.34")
     }
     func testInvalidPercentIsUnknown() throws {
-        let result = try UsageParser.parse(.grok, data: Data(#"{"config":{"creditUsagePercent":150}}"#.utf8), fetchedAt: .now)
+        let result = try UsageParser.parse(.grok, data: Data(#"{"config":{"creditUsagePercent":150,"currentPeriod":{"end":"2026-11-01T00:00:00Z"}}}"#.utf8), fetchedAt: .now)
         XCTAssertNil(result.windows.first?.usedPercent)
     }
     func testAuthErrorDoesNotExposeResponseBody() {
         let error = ProviderError.http(401, retryAfter: nil)
         XCTAssertFalse(error.localizedDescription.contains("secret"))
         XCTAssertEqual(error.localizedDescription, "Session expired. Sign in through the provider app, then refresh.")
+    }
+}
+
+final class DisplayTests: XCTestCase {
+    func testPastResetRemainsAwaitingRefresh() {
+        XCTAssertEqual(DisplayText.reset(Date(timeIntervalSince1970: 10), now: Date(timeIntervalSince1970: 20)), "Awaiting refresh")
+    }
+    func testMissingPercentRemainsUnknown() {
+        XCTAssertEqual(DisplayText.percent(nil), "Unknown")
+    }
+    func testGrokLegacyResetUnderConfig() throws {
+        let json = Data(#"{"config":{"billingPeriodEnd":"2026-11-01T00:00:00Z","currentPeriod":{"type":"monthly"}}}"#.utf8)
+        let result = try UsageParser.parse(.grok, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.windows.first?.title, "Monthly")
+        XCTAssertNotNil(result.windows.first?.resetsAt)
+    }
+    func testCodexCreditsAreCreditUnits() throws {
+        let json = Data(#"{"credits":{"has_credits":true,"balance":"12.5"}}"#.utf8)
+        let result = try UsageParser.parse(.codex, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.extras.first?.value, "12.5 credits")
+    }
+    func testCodexCodeReviewAndResetExtras() throws {
+        let json = Data(#"{"code_review_rate_limit":{"primary_window":{"used_percent":2,"limit_window_seconds":604800}},"rate_limit_reset_credits":{"available_count":2,"applicable_available_count":0}}"#.utf8)
+        let result = try UsageParser.parse(.codex, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.windows.first?.title, "Code review · 7-day")
+        XCTAssertEqual(result.extras.map(\.value), ["2", "0"])
+    }
+}
+
+final class EnvelopeTests: XCTestCase {
+    func testEmptySuccessEnvelopeIsRejectedForEveryProvider() {
+        for provider in Provider.allCases {
+            XCTAssertThrowsError(try UsageParser.parse(provider, data: Data("{}".utf8), fetchedAt: .now), provider.rawValue)
+        }
+    }
+    func testResetWithoutPercentIsMeaningfulButStillUnknown() throws {
+        let result = try UsageParser.parse(.grok, data: Data(#"{"config":{"currentPeriod":{"end":"2026-11-01T00:00:00Z"}}}"#.utf8), fetchedAt: .now)
+        XCTAssertNil(result.windows.first?.usedPercent)
+        XCTAssertNotNil(result.windows.first?.resetsAt)
+    }
+}
+
+final class AdditionalContractTests: XCTestCase {
+    func testGrokPlanFromConfig() throws {
+        let json = Data(#"{"config":{"subscriptionTier":"supergrok","creditUsagePercent":25}}"#.utf8)
+        let result = try UsageParser.parse(.grok, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.plan, "supergrok")
+    }
+    func testCursorTeamOnDemandPool() throws {
+        let json = Data(#"{"teamUsage":{"onDemand":{"used":100,"limit":1000,"totalPercentUsed":10}},"billingCycleEnd":"2026-11-01T00:00:00Z"}"#.utf8)
+        let result = try UsageParser.parse(.cursor, data: json, fetchedAt: .now)
+        XCTAssertEqual(result.windows.first?.title, "Team on-demand")
+        XCTAssertEqual(result.windows.first?.usedPercent, 10)
+    }
+    func testRateLimitCooldownAppliesToManualRefresh() {
+        let limit = Date(timeIntervalSince1970: 1000)
+        XCTAssertFalse(RefreshPolicy.canAttempt(now: Date(timeIntervalSince1970: 900), manual: true, retryAt: limit))
+        XCTAssertTrue(RefreshPolicy.canAttempt(now: Date(timeIntervalSince1970: 1001), manual: true, retryAt: limit))
+    }
+}
+
+final class RetryAfterTests: XCTestCase {
+    func testHTTPDateRetryAfter() {
+        let now = Date(timeIntervalSince1970: 1_783_000_000)
+        let date = RetryAfterParser.parse("Sun, 31 May 2026 14:46:40 GMT", now: now)
+        XCTAssertNotNil(date)
+    }
+    func testSecondsRetryAfterIsCapped() {
+        let now = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(RetryAfterParser.parse("99999", now: now), Date(timeIntervalSince1970: 3700))
     }
 }

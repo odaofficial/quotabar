@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Security
 import SQLite3
 
@@ -9,7 +10,11 @@ public struct ProviderCredential: Sendable {
     public init(token: String, accountID: String? = nil, userID: String? = nil) {
         self.token = token; self.accountID = accountID; self.userID = userID
     }
-    public var identity: String { accountID ?? userID ?? String(token.prefix(12)) }
+    public var identity: String {
+        if let accountID { return accountID }
+        if let userID { return userID }
+        return SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 public enum CredentialParser {
@@ -25,7 +30,9 @@ public enum CredentialParser {
         if let n = value as? NSNumber { return Date(timeIntervalSince1970: n.doubleValue > 1e11 ? n.doubleValue / 1000 : n.doubleValue) }
         if let s = value as? String {
             if let n = Double(s) { return Date(timeIntervalSince1970: n > 1e11 ? n / 1000 : n) }
-            return ISO8601DateFormatter().date(from: s)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: s) ?? ISO8601DateFormatter().date(from: s)
         }
         return nil
     }
@@ -39,7 +46,7 @@ public enum CredentialParser {
     public static func claude(_ data: Data, now: Date) throws -> ProviderCredential {
         let json = try object(data)
         guard let oauth = json["claudeAiOauth"] as? [String: Any], let token = nonempty(oauth["accessToken"]) else {
-            throw ProviderError.disconnected("Run claude login in Terminal, then refresh.")
+            throw ProviderError.disconnected("Run claude auth login in Terminal, then refresh.")
         }
         if let expires = expiry(oauth["expiresAt"]), expires <= now { throw ProviderError.expired }
         return .init(token: token)
@@ -59,12 +66,12 @@ public enum CredentialParser {
     public static func grok(_ data: Data, now: Date) throws -> ProviderCredential {
         let json = try object(data)
         let entries = json.filter { $0.key.hasPrefix("https://auth.x.ai::") }.compactMap { _, value -> ProviderCredential? in
-            guard let entry = value as? [String: Any], let token = nonempty(entry["bearer"]), let userID = nonempty(entry["user_id"]) else { return nil }
+            guard let entry = value as? [String: Any], let token = nonempty(entry["key"]), let userID = nonempty(entry["user_id"]) else { return nil }
             if let expires = expiry(entry["expires_at"]), expires <= now { return nil }
             return .init(token: token, userID: userID)
         }
         if entries.count > 1 { throw ProviderError.ambiguousAccount }
-        guard let entry = entries.first else { throw ProviderError.disconnected("Run Grok CLI login, then refresh.") }
+        guard let entry = entries.first else { throw ProviderError.disconnected("Run grok login in Terminal, then refresh.") }
         return entry
     }
 }
@@ -99,7 +106,7 @@ public enum CredentialReader {
             let status = SecItemCopyMatching(query as CFDictionary, &result)
             if status == errSecInteractionNotAllowed { throw ProviderError.keychainPermission }
             guard status == errSecSuccess, let data = result as? Data else {
-                throw ProviderError.disconnected("Run claude login, or choose Connect to allow Keychain access.")
+                throw ProviderError.disconnected("Run claude auth login, or choose Connect to allow Keychain access.")
             }
             return try CredentialParser.claude(data, now: .now)
         case .cursor:
