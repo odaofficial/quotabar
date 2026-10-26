@@ -29,6 +29,18 @@ To run a read-only live check with redacted output:
 
 The diagnostic output includes provider name, plan, window labels, used percentages, reset times, and connection status. It does not print account IDs, response bodies, tokens, or email addresses. It never asks for Keychain access.
 
+For a two-second startup check using synthetic data:
+
+```sh
+.build/release/OdaLimits --demo --smoke-test
+```
+
+This reports whether AppKit completed launch, created the status item, and hosted the popover. A normal `--smoke-test` also reports login-item status; it may check existing provider sessions. To render the synthetic popover without reading sessions or changing preferences:
+
+```sh
+.build/release/OdaLimits --render-demo /tmp/oda-limits-demo.png
+```
+
 ## Provider setup
 
 - **Codex:** Run `codex login`. The app reads `~/.codex/auth.json`, or `$CODEX_HOME/auth.json`, and asks the ChatGPT usage endpoint. Some Codex installs keep credentials only in Keychain; those sessions may require signing in through the CLI to create the file.
