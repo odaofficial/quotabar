@@ -64,7 +64,7 @@ enum DemoScenario: String {
         if !isDemo { UserDefaults.standard.set(value, forKey: "enabled.\(provider.rawValue)") }
     }
     func refresh(claudePrompt: Bool = false, only target: Provider? = nil) {
-        guard !isDemo, !isRefreshing else { return }
+        guard !isDemo, !isRefreshing, !enabled.isEmpty else { return }
         if !claudePrompt {
             guard Date().timeIntervalSince(lastManualRefresh) >= 30 else { return }
             lastManualRefresh = .now

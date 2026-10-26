@@ -77,7 +77,7 @@ struct PopoverView: View {
             if !model.showingSettings {
                 if model.isRefreshing { ProgressView().controlSize(.small).accessibilityLabel("Refreshing usage") }
                 PanelIconButton(symbol: "arrow.clockwise", title: "Refresh usage", hint: "⌘R") { model.refresh() }
-                    .disabled(model.isDemo || model.isRefreshing)
+                    .disabled(model.isDemo || model.isRefreshing || model.enabled.isEmpty)
                 PanelIconButton(symbol: "gearshape", title: "Settings", hint: "⌘,") { model.showingSettings = true }
             }
         }
