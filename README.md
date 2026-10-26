@@ -4,6 +4,10 @@ A small native macOS menu bar view of usage allowances for Codex, Claude, Cursor
 
 Requires macOS 14 or later and Xcode/Swift 6 to build. The app has no third-party runtime packages. The repository is [MIT licensed](LICENSE).
 
+<img src="docs/images/usage-light.png" alt="Oda Limits in light mode, showing synthetic usage for all four providers" width="350"> <img src="docs/images/usage-dark.png" alt="Oda Limits in dark mode, showing synthetic usage" width="350">
+
+All screenshots use sample data. The app starts idle; press the refresh icon or ⌘R to check usage. Relative reset labels update when you open the panel or refresh. Hover over a reset time for its exact date. The chevrons reveal additional allowance windows and account details.
+
 ## Download
 
 The [latest release](https://github.com/odaofficial/oda-limits/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **Oda Limits.app** to `~/Applications` or `/Applications`, and open it. The context-card icon appears in the menu bar. Usage checks run when you press Refresh; the app has no background polling, embedded browser, or always-running helper.
