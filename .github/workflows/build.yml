@@ -1,0 +1,13 @@
+name: Build
+on:
+  push:
+  pull_request:
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Package
+        run: ./Scripts/package.sh
