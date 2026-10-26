@@ -143,19 +143,26 @@ struct ProviderState {
         let installed = bundle.pathExtension == "app" &&
             (bundle.path.hasPrefix(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path + "/") || bundle.path.hasPrefix("/Applications/"))
         guard installed else { loginStatus = "Available after installation"; return }
+        var registrationError: String?
         if !UserDefaults.standard.bool(forKey: "loginSetupDone") {
-            if SMAppService.mainApp.status == .notRegistered { try? SMAppService.mainApp.register() }
+            let status = SMAppService.mainApp.status
+            if status != .enabled && status != .requiresApproval {
+                do { try SMAppService.mainApp.register() }
+                catch { registrationError = loginError(error) }
+            }
             if SMAppService.mainApp.status == .enabled || SMAppService.mainApp.status == .requiresApproval {
                 UserDefaults.standard.set(true, forKey: "loginSetupDone")
             }
         }
         updateLoginStatus()
+        if let registrationError { loginStatus = registrationError }
     }
     func updateLoginStatus() {
         switch SMAppService.mainApp.status {
         case .enabled: loginStatus = "On"
         case .requiresApproval: loginStatus = "Needs approval in System Settings"
         case .notRegistered: loginStatus = "Off"
+        case .notFound: loginStatus = "Login item not found"
         default: loginStatus = "Unavailable"
         }
     }
@@ -165,7 +172,13 @@ struct ProviderState {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
             updateLoginStatus()
-        } catch { loginStatus = "Could not change login item" }
+        } catch { loginStatus = loginError(error) }
+    }
+    private func loginError(_ error: Error) -> String {
+        let nsError = error as NSError
+        let safeDomain = nsError.domain.count <= 80 && nsError.domain.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" })
+            ? nsError.domain : "NSError"
+        return "Login registration failed (\(safeDomain) \(nsError.code))"
     }
     private func seedDemo() {
         let soon = Date().addingTimeInterval(3_600 * 4)
