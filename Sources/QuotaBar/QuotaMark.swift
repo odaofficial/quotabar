@@ -1,7 +1,7 @@
 import AppKit
 
 // Original monochrome context/chat mark shared with the app icon.
-enum QuotaMark {
+@MainActor enum QuotaMark {
     static let image: NSImage = {
         let image = NSImage(size: NSSize(width: 20, height: 18), flipped: false) { _ in
             NSColor.black.setStroke()

@@ -7,6 +7,7 @@ struct ProviderState {
     var snapshot: UsageSnapshot?
     var error: String?
     var checkedAt: Date?
+    var needsKeychainApproval = false
     var identity: String?
     var nextAllowed: Date = .distantPast
     var failures = 0
@@ -14,7 +15,7 @@ struct ProviderState {
 }
 
 enum DemoScenario: String {
-    case connected, mixed, empty, expanded, initial, failed
+    case connected, mixed, empty, expanded, initial, failed, keychain
 }
 
 @MainActor final class AppModel: ObservableObject {
@@ -43,6 +44,10 @@ enum DemoScenario: String {
                 for provider in Provider.allCases {
                     states[provider] = ProviderState(error: "Could not reach the provider.", checkedAt: .now)
                 }
+            case .keychain:
+                enabled = [.claude]
+                states[.claude] = ProviderState(error: ProviderError.keychainPermission.localizedDescription,
+                                                checkedAt: .now, needsKeychainApproval: true)
             case .mixed:
                 var codex = states[.codex]!
                 codex.error = "Could not reach the provider."
@@ -73,6 +78,7 @@ enum DemoScenario: String {
         Task { @MainActor in
             for provider in Provider.allCases where enabled.contains(provider) && (target == nil || provider == target) {
                 var state = states[provider, default: ProviderState()]
+                state.needsKeychainApproval = false
                 var credentialLoaded = false
                 var validatingIdentity = false
                 do {
@@ -121,6 +127,9 @@ enum DemoScenario: String {
                     if case .expired = error { state.snapshot = nil; state.identity = nil }
                     state.checkedAt = .now
                     state.error = error.localizedDescription
+                    if case .keychainPermission = error, provider == .claude {
+                        state.needsKeychainApproval = true
+                    }
                     state.failures = min(state.failures + 1, 6)
                     let backoff = min(300 * pow(2, Double(state.failures - 1)), 3600)
                     state.nextAllowed = max(Date().addingTimeInterval(backoff), error.retryAfter ?? Date())

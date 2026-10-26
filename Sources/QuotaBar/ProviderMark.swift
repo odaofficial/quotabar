@@ -2,7 +2,7 @@ import AppKit
 import QuotaBarCore
 
 // SwiftPM keeps previews self-contained; packaged apps read the same SVGs from Contents/Resources.
-enum ProviderMark {
+@MainActor enum ProviderMark {
     private static let images: [Provider: NSImage] = Dictionary(uniqueKeysWithValues: Provider.allCases.compactMap { provider in
         guard let url = Bundle.main.url(forResource: provider.rawValue, withExtension: "svg", subdirectory: "ProviderMarks")
                         ?? Bundle.module.url(forResource: provider.rawValue, withExtension: "svg", subdirectory: "Resources"),

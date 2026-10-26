@@ -241,7 +241,7 @@ private struct ProviderSection: View {
                 else {
                     Text("Click Refresh to check usage").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
-                if provider == .claude && state.error != nil {
+                if provider == .claude && state.needsKeychainApproval {
                     Button("Connect Claude Keychain") { connect() }.buttonStyle(.bordered).controlSize(.small)
                         .padding(.top, 6)
                 }
