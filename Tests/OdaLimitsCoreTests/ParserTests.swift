@@ -113,4 +113,9 @@ final class RetryAfterTests: XCTestCase {
         let now = Date(timeIntervalSince1970: 100)
         XCTAssertEqual(RetryAfterParser.parse("99999", now: now), Date(timeIntervalSince1970: 3700))
     }
+    func testHTTPDateRetryAfterIsCappedToOneHour() {
+        let now = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(RetryAfterParser.parse("Thu, 01 Jan 2099 00:00:00 GMT", now: now), Date(timeIntervalSince1970: 3700))
+        XCTAssertEqual(RetryAfterParser.parse("Thu, 01 Jan 1970 00:00:00 GMT", now: now), now)
+    }
 }
