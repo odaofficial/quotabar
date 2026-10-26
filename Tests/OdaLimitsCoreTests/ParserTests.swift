@@ -96,6 +96,10 @@ final class AdditionalContractTests: XCTestCase {
         let result = try UsageParser.parse(.cursor, data: json, fetchedAt: .now)
         XCTAssertEqual(result.windows.map(\.title), ["Plan cycle"])
     }
+    func testAccountChangeResetsPriorCooldownState() {
+        XCTAssertTrue(RefreshPolicy.accountChanged(previous: "A", current: "B"))
+        XCTAssertFalse(RefreshPolicy.accountChanged(previous: "A", current: "A"))
+    }
     func testRateLimitCooldownAppliesToManualRefresh() {
         let limit = Date(timeIntervalSince1970: 1000)
         XCTAssertFalse(RefreshPolicy.canAttempt(now: Date(timeIntervalSince1970: 900), manual: true, retryAt: limit))

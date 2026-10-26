@@ -71,19 +71,28 @@ struct ProviderState {
         isRefreshing = true
         Task { @MainActor in
             for provider in Provider.allCases where enabled.contains(provider) && (target == nil || provider == target) {
-                let previous = states[provider, default: ProviderState()]
-                if !RefreshPolicy.canAttempt(now: .now, manual: manual, retryAt: previous.rateLimitedUntil) { continue }
-                if !manual && previous.nextAllowed > Date() { continue }
                 var state = states[provider, default: ProviderState()]
-                state.checkedAt = .now
+                var credentialLoaded = false
+                var validatingIdentity = false
                 do {
                     let credential = try await Task.detached(priority: .utility) {
                         try CredentialReader.load(provider, allowKeychainPrompt: claudePrompt && provider == .claude)
                     }.value
-                    if let old = state.identity, old != credential.identity { state.snapshot = nil }
+                    credentialLoaded = true
+                    if RefreshPolicy.accountChanged(previous: state.identity, current: credential.identity) {
+                        state.snapshot = nil
+                        state.error = nil
+                        state.failures = 0
+                        state.nextAllowed = .distantPast
+                        state.rateLimitedUntil = nil
+                    }
                     state.identity = credential.identity
                     states[provider] = state
+                    if !RefreshPolicy.canAttempt(now: .now, manual: manual, retryAt: state.rateLimitedUntil) { continue }
+                    if !manual && state.nextAllowed > Date() { continue }
+                    state.checkedAt = .now
                     let (snapshot, _) = try await ProviderClient.fetch(provider, credential: credential)
+                    validatingIdentity = true
                     let current = try await Task.detached(priority: .utility) { try CredentialReader.load(provider).identity }.value
                     guard current == credential.identity else {
                         state.snapshot = nil
@@ -96,14 +105,28 @@ struct ProviderState {
                     state.nextAllowed = .distantPast
                     state.rateLimitedUntil = nil
                 } catch let error as ProviderError {
+                    if !credentialLoaded || validatingIdentity {
+                        state.snapshot = nil
+                        state.identity = nil
+                        state.rateLimitedUntil = nil
+                        state.failures = 0
+                    }
                     if case .disconnected = error { state.snapshot = nil; state.identity = nil }
                     if case .expired = error { state.snapshot = nil; state.identity = nil }
+                    state.checkedAt = .now
                     state.error = error.localizedDescription
                     state.failures = min(state.failures + 1, 6)
                     let backoff = min(300 * pow(2, Double(state.failures - 1)), 3600)
                     state.nextAllowed = max(Date().addingTimeInterval(backoff), error.retryAfter ?? Date())
                     if case .http(429, _) = error { state.rateLimitedUntil = state.nextAllowed }
                 } catch {
+                    if !credentialLoaded || validatingIdentity {
+                        state.snapshot = nil
+                        state.identity = nil
+                        state.rateLimitedUntil = nil
+                        state.failures = 0
+                    }
+                    state.checkedAt = .now
                     state.error = ProviderError.network.localizedDescription
                     state.failures = min(state.failures + 1, 6)
                     state.nextAllowed = Date().addingTimeInterval(min(300 * pow(2, Double(state.failures - 1)), 3600))
