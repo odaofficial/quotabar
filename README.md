@@ -4,6 +4,12 @@ A small native macOS menu bar view of usage allowances for Codex, Claude, Cursor
 
 Requires macOS 14 or later and Xcode/Swift 6 to build. The app has no third-party runtime packages. The repository is [MIT licensed](LICENSE).
 
+## Download
+
+The [latest release](https://github.com/odaofficial/oda-limits/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **Oda Limits.app** to `~/Applications` or `/Applications`, and open it. The gauge icon appears in the menu bar. The initial local build is about 1.1 MiB, with checks every five minutes and no embedded browser or always-running helper.
+
+Release binaries are ad hoc signed for local use, not Apple-notarized. If macOS refuses to open the downloaded binary, build from source below or review it before using the macOS app-approval flow. Do not disable Gatekeeper globally.
+
 ## Build and install
 
 ```sh
@@ -51,3 +57,9 @@ This reports whether AppKit completed launch, created the status item, and hoste
 Sessions remain owned by their provider apps. Oda Limits never rotates tokens. If a provider session expires, sign in through that provider and refresh. Availability of these undocumented usage endpoints can change; an unrecognized or missing field appears as unknown instead of a fabricated zero.
 
 See [Privacy and security](docs/PRIVACY.md) for data handling details.
+
+## Verification and integration sources
+
+See [verification notes](docs/VERIFICATION.md) for test coverage, observed resource use, and live integration limits. Grok requires a working Grok CLI login; its parser is fixture-tested in this release.
+
+The implementation is original Swift code. Usage contracts were checked against [OpenAI Codex](https://github.com/openai/codex), [xAI Grok Build](https://github.com/xai-org/grok-build), and [CodexBar](https://github.com/steipete/CodexBar). Thanks to those projects for documenting their integration behavior. Provider names and marks belong to their respective owners; this app is not affiliated with the providers.
