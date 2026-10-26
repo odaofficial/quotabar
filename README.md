@@ -10,7 +10,7 @@ All screenshots use sample data. The app starts idle; press the refresh icon or 
 
 ## Download
 
-The [latest release](https://github.com/odaofficial/quotabar/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **QuotaBar.app** to `~/Applications` or `/Applications`, and open it. The context-card icon appears in the menu bar. Usage checks run when you press Refresh; the app has no background polling, embedded browser, or always-running helper.
+The [latest release](https://github.com/odaofficial/quotabar/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **QuotaBar.app** to `~/Applications` or `/Applications`, and open it. The context/chat icon appears in the menu bar. Usage checks run when you press Refresh; the app has no background polling, embedded browser, or always-running helper.
 
 Release binaries are ad hoc signed for local use, not Apple-notarized. If macOS refuses to open the downloaded binary, build from source below or review it before using the macOS app-approval flow. Do not disable Gatekeeper globally.
 
@@ -62,7 +62,7 @@ The previews are opaque 410 × 630 point PNGs at 2× resolution. While the popov
 ## Provider setup
 
 - **Codex:** Run `codex login`. The app reads `~/.codex/auth.json`, or `$CODEX_HOME/auth.json`, and asks the ChatGPT usage endpoint. Some Codex installs keep credentials only in Keychain; those sessions may require signing in through the CLI to create the file.
-- **Claude:** Run `claude auth login`. The app reads `~/.claude/.credentials.json`, or `$CLAUDE_CONFIG_DIR/.credentials.json`. If needed, choose **Connect Claude Keychain** in the popover to allow the existing Claude Code Keychain entry. No prompt appears at startup.
+- **Claude:** Run `claude auth login`. The app reads `~/.claude/.credentials.json`, or `$CLAUDE_CONFIG_DIR/.credentials.json`. If needed, choose **Connect Claude Keychain** in the popover to allow the existing Claude Code Keychain entry. No prompt appears at startup. Recognized Claude plan tiers come from the same sign-in metadata; after changing plans, re-authenticate through Claude if that metadata is out of date.
 - **Cursor:** Sign in to the Cursor desktop app. QuotaBar reads Cursor's local SQLite state in read-only mode.
 - **Grok:** Run `grok login`. The app reads `$GROK_HOME/auth.json` or `~/.grok/auth.json`. Expired Grok sessions must be renewed by Grok CLI; QuotaBar cannot refresh them.
 
@@ -74,4 +74,4 @@ See [Privacy and security](docs/PRIVACY.md) for data handling details.
 
 See [verification notes](docs/VERIFICATION.md) for test coverage, observed resource use, and live integration limits. Grok requires a working Grok CLI login; its parser is fixture-tested in this release.
 
-The implementation is original Swift code. The 0.2.0 panel follows the [macOS design skill](https://github.com/ceorkm/macos-design-skill/blob/main/SKILL.md). [Provider marks and licenses](docs/THIRD-PARTY.md) are recorded separately. Usage contracts were checked against [OpenAI Codex](https://github.com/openai/codex), [xAI Grok Build](https://github.com/xai-org/grok-build), and [CodexBar](https://github.com/steipete/CodexBar). Thanks to those projects for documenting their integration behavior. Provider names and marks belong to their respective owners; this app is not affiliated with the providers.
+The implementation is original Swift code. The 0.2.0 panel applies the user-selected Apple Design skill, drawing on [Apple’s Designing Fluid Interfaces](https://developer.apple.com/videos/play/wwdc2018/803/), alongside the [macOS design skill](https://github.com/ceorkm/macos-design-skill/blob/main/SKILL.md). [Provider marks and licenses](docs/THIRD-PARTY.md) are recorded separately. Usage contracts were checked against [OpenAI Codex](https://github.com/openai/codex), [xAI Grok Build](https://github.com/xai-org/grok-build), and [CodexBar](https://github.com/steipete/CodexBar). Thanks to those projects for documenting their integration behavior. Provider names and marks belong to their respective owners; this app is not affiliated with the providers.
