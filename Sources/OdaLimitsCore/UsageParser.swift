@@ -13,6 +13,7 @@ public enum UsageParser {
     private static func dict(_ value: Any?) -> [String: Any]? { value as? [String: Any] }
     private static func string(_ value: Any?) -> String? { (value as? String).flatMap { $0.isEmpty ? nil : $0 } }
     private static func number(_ value: Any?) -> Double? {
+        if let s = value as? String, let n = Double(s), n.isFinite { return n }
         guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
         return n.doubleValue.isFinite ? n.doubleValue : nil
     }
@@ -43,6 +44,7 @@ public enum UsageParser {
             }
         }
         if let rate = dict(json["rate_limit"]) { append(rate) }
+        if let review = dict(json["code_review_rate_limit"]) { append(review, prefix: "Code review · ") }
         for extra in json["additional_rate_limits"] as? [[String: Any]] ?? [] {
             guard let rate = dict(extra["rate_limit"]) else { continue }
             let label = string(extra["limit_name"]) ?? string(extra["metered_feature"]) ?? "Additional"
@@ -50,7 +52,11 @@ public enum UsageParser {
         }
         var extras: [UsageExtra] = []
         if let credits = dict(json["credits"]) {
-            if let balance = money(credits["balance"]) { extras.append(.init("Credits", balance)) }
+            if let balance = money(credits["balance"]), credits["has_credits"] as? Bool == true { extras.append(.init("Credits", balance)) }
+        }
+        if let resets = dict(json["rate_limit_reset_credits"]) {
+            if let count = number(resets["available_count"]) { extras.append(.init("Free resets", "\(Int(count))")) }
+            if let count = number(resets["applicable_available_count"]) { extras.append(.init("Applicable now", "\(Int(count))")) }
         }
         return .init(provider: .codex, plan: string(json["plan_type"]), windows: windows, extras: extras, fetchedAt: fetched)
     }
