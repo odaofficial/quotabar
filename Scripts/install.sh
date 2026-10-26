@@ -3,18 +3,23 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ ! -d "dist/QuotaBar.app" ]; then ./Scripts/package.sh; fi
 mkdir -p "$HOME/Applications"
-old_app="$HOME/Applications/Oda Limits.app"
 new_app="$HOME/Applications/QuotaBar.app"
-pkill -x OdaLimits 2>/dev/null || true
+bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Scripts/Info.plist)
 pkill -x QuotaBar 2>/dev/null || true
-if [ -d "$old_app" ]; then
-    # Preserve the bundle's location while changing its visible app name.
+for existing_app in "$HOME/Applications/"*.app; do
+    [ -d "$existing_app" ] || continue
+    [ "$existing_app" != "$new_app" ] || continue
+    existing_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$existing_app/Contents/Info.plist" 2>/dev/null || true)
+    [ "$existing_id" = "$bundle_id" ] || continue
+    # Recognize an earlier installation by identity, regardless of its folder name.
+    existing_executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$existing_app/Contents/Info.plist" 2>/dev/null || true)
+    if [ -n "$existing_executable" ]; then pkill -x "$existing_executable" 2>/dev/null || true; fi
     if [ ! -e "$new_app" ]; then
-        mv "$old_app" "$new_app"
+        mv "$existing_app" "$new_app"
     else
-        rm -r "$old_app"
+        rm -r "$existing_app"
     fi
-fi
+done
 if [ -d "$new_app/Contents" ]; then
     # ditto merges directories, so clear obsolete executable and icon files first.
     rm -r "$new_app/Contents"

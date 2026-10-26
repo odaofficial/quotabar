@@ -3,7 +3,7 @@
 ## Objective and scope
 A personal, open-source, native macOS menu bar utility for the user's Codex, Claude, Cursor, and Grok subscriptions. One icon opens four compact provider sections with authoritative usage, remaining allowance, reset countdown and local reset date, plan, credit/spend details where supplied, connection/freshness status, refresh, and provider dashboard links. Launch at login is enabled on first installed launch, with a visible toggle to disable it. One current account per installed provider; no multi-account management in v0.1.
 
-The user authorized building and installing this utility and creating a public repository under odaofficial. The implementation is separate from the Oda application checkout. Repository: https://github.com/odaofficial/quotabar. Product name: QuotaBar. The legacy bundle identifier org.odaofficial.limits is retained only to preserve preferences and login registration across the rename. MIT license, copyright Oda contributors.
+The user authorized building and installing this utility and creating a public repository under odaofficial. Repository: https://github.com/odaofficial/quotabar. Product name: QuotaBar. The legacy bundle identifier org.odaofficial.limits is retained only to preserve preferences and login registration across the rename. MIT license, copyright QuotaBar contributors.
 
 ## Architecture and resource budget
 Swift 6 / SwiftPM, macOS 14+, AppKit status item and SwiftUI popover. Only system frameworks: Foundation, AppKit, SwiftUI, Security, ServiceManagement, SQLite3 as needed. No third-party packages, embedded browser, node runtime, cloud service, analytics, LLM calls, background subprocess daemon or history scans.

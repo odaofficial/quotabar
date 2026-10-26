@@ -4,7 +4,7 @@
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleExecutable</key><string>QuotaBar</string>
 <key>CFBundleIconFile</key><string>QuotaBar</string>
-<!-- Retained from Oda Limits to preserve existing preferences and login-item identity. -->
+<!-- Stable identifier preserves existing preferences and login-item identity. -->
 <key>CFBundleIdentifier</key><string>org.odaofficial.limits</string>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>QuotaBar</string>
