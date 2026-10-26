@@ -6,7 +6,7 @@ Requires macOS 14 or later and Xcode/Swift 6 to build. The app has no third-part
 
 ## Download
 
-The [latest release](https://github.com/odaofficial/oda-limits/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **Oda Limits.app** to `~/Applications` or `/Applications`, and open it. The gauge icon appears in the menu bar. The initial local build is about 1.1 MiB, with checks every five minutes and no embedded browser or always-running helper.
+The [latest release](https://github.com/odaofficial/oda-limits/releases/latest) includes an Apple silicon app for macOS 14+. Extract it, move **Oda Limits.app** to `~/Applications` or `/Applications`, and open it. The context-card icon appears in the menu bar. Usage checks run when you press Refresh; the app has no background polling, embedded browser, or always-running helper.
 
 Release binaries are ad hoc signed for local use, not Apple-notarized. If macOS refuses to open the downloaded binary, build from source below or review it before using the macOS app-approval flow. Do not disable Gatekeeper globally.
 
@@ -41,11 +41,19 @@ For a two-second startup check using synthetic data:
 .build/release/OdaLimits --demo --smoke-test
 ```
 
-This reports whether AppKit completed launch, created the status item, and hosted the popover. A normal `--smoke-test` also reports login-item status; it may check existing provider sessions. To render the synthetic popover without reading sessions or changing preferences:
+This reports whether AppKit completed launch, created the status item, and hosted the popover. A normal `--smoke-test` also reports login-item status. To render the synthetic popover without reading sessions or changing preferences:
 
 ```sh
-.build/release/OdaLimits --render-demo /tmp/oda-limits-demo.png
+.build/release/OdaLimits --render-demo /tmp/oda-limits-light.png --appearance light
+.build/release/OdaLimits --render-demo /tmp/oda-limits-dark.png --appearance dark
+.build/release/OdaLimits --render-demo /tmp/oda-limits-settings.png --settings
+.build/release/OdaLimits --render-demo /tmp/oda-limits-mixed.png --scenario mixed
+.build/release/OdaLimits --render-demo /tmp/oda-limits-empty.png --scenario empty
+.build/release/OdaLimits --render-demo /tmp/oda-limits-expanded.png --scenario expanded
+.build/release/OdaLimits --render-demo /tmp/oda-limits-initial.png --scenario initial
 ```
+
+The previews are opaque 420 × 660 point PNGs at 2× resolution. While the popover has keyboard focus, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits, and Escape returns or dismisses.
 
 ## Provider setup
 
@@ -62,4 +70,4 @@ See [Privacy and security](docs/PRIVACY.md) for data handling details.
 
 See [verification notes](docs/VERIFICATION.md) for test coverage, observed resource use, and live integration limits. Grok requires a working Grok CLI login; its parser is fixture-tested in this release.
 
-The implementation is original Swift code. Usage contracts were checked against [OpenAI Codex](https://github.com/openai/codex), [xAI Grok Build](https://github.com/xai-org/grok-build), and [CodexBar](https://github.com/steipete/CodexBar). Thanks to those projects for documenting their integration behavior. Provider names and marks belong to their respective owners; this app is not affiliated with the providers.
+The implementation is original Swift code. The 0.2.0 panel follows the [macOS design skill](https://github.com/ceorkm/macos-design-skill/blob/main/SKILL.md). [Provider marks and licenses](docs/THIRD-PARTY.md) are recorded separately. Usage contracts were checked against [OpenAI Codex](https://github.com/openai/codex), [xAI Grok Build](https://github.com/xai-org/grok-build), and [CodexBar](https://github.com/steipete/CodexBar). Thanks to those projects for documenting their integration behavior. Provider names and marks belong to their respective owners; this app is not affiliated with the providers.

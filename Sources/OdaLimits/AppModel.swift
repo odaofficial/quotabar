@@ -13,6 +13,10 @@ struct ProviderState {
     var rateLimitedUntil: Date?
 }
 
+enum DemoScenario: String {
+    case connected, mixed, empty, expanded, initial
+}
+
 @MainActor final class AppModel: ObservableObject {
     @Published private(set) var states: [Provider: ProviderState] = [:]
     @Published private(set) var isRefreshing = false
@@ -21,53 +25,51 @@ struct ProviderState {
     @Published var showingSettings = false
     @Published var enabled: Set<Provider>
     let isDemo: Bool
-    private var refreshTimer: Timer?
-    private var countdownTimer: Timer?
+    let demoScenario: DemoScenario
     private var lastManualRefresh: Date = .distantPast
-    private var asleep = false
 
-    init(demo: Bool) {
+    init(demo: Bool, scenario: DemoScenario = .connected) {
         isDemo = demo
+        demoScenario = scenario
         enabled = demo ? Set(Provider.allCases) : Set(Provider.allCases.filter { UserDefaults.standard.object(forKey: "enabled.\($0.rawValue)") as? Bool ?? true })
         for provider in Provider.allCases { states[provider] = ProviderState() }
-        if demo { seedDemo() }
+        if demo {
+            seedDemo()
+            switch scenario {
+            case .connected, .expanded: break
+            case .empty: enabled = []
+            case .initial:
+                for provider in Provider.allCases { states[provider] = ProviderState() }
+            case .mixed:
+                var codex = states[.codex]!
+                codex.error = "Could not reach the provider."
+                states[.codex] = codex
+                states[.claude] = ProviderState(snapshot: .init(provider: .claude, plan: "Pro", windows: [
+                    .init(title: "5-hour", usedPercent: nil, resetsAt: nil),
+                    .init(title: "Weekly", usedPercent: 100, resetsAt: Date().addingTimeInterval(3_600 * 24 * 3))
+                ], extras: [], fetchedAt: .now), checkedAt: .now)
+                states[.cursor] = ProviderState(error: "Sign in to the Cursor app.", checkedAt: .now)
+            }
+        }
     }
     func start() {
         guard !isDemo else { return }
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
-        }
-        refreshTimer?.tolerance = 30
-        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.asleep = true }
-        }
-        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.asleep = false; self?.refresh() }
-        }
         configureLoginItem()
-        refresh()
     }
     func setPopoverVisible(_ visible: Bool) {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
-        guard visible else { return }
-        now = .now
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.now = .now }
-        }
-        countdownTimer?.tolerance = 10
+        if visible { now = .now }
     }
     func setEnabled(_ provider: Provider, _ value: Bool) {
         if value { enabled.insert(provider) } else { enabled.remove(provider) }
         if !isDemo { UserDefaults.standard.set(value, forKey: "enabled.\(provider.rawValue)") }
-        if value { refresh() }
     }
-    func refresh(manual: Bool = false, claudePrompt: Bool = false, only target: Provider? = nil) {
-        guard !isDemo, !asleep, !isRefreshing else { return }
-        if manual {
+    func refresh(claudePrompt: Bool = false, only target: Provider? = nil) {
+        guard !isDemo, !isRefreshing else { return }
+        if !claudePrompt {
             guard Date().timeIntervalSince(lastManualRefresh) >= 30 else { return }
             lastManualRefresh = .now
         }
+        now = .now
         isRefreshing = true
         Task { @MainActor in
             for provider in Provider.allCases where enabled.contains(provider) && (target == nil || provider == target) {
@@ -88,8 +90,7 @@ struct ProviderState {
                     }
                     state.identity = credential.identity
                     states[provider] = state
-                    if !RefreshPolicy.canAttempt(now: .now, manual: manual, retryAt: state.rateLimitedUntil) { continue }
-                    if !manual && state.nextAllowed > Date() { continue }
+                    if !RefreshPolicy.canAttempt(now: .now, manual: true, retryAt: state.rateLimitedUntil) { continue }
                     state.checkedAt = .now
                     let (snapshot, _) = try await ProviderClient.fetch(provider, credential: credential)
                     validatingIdentity = true
@@ -136,7 +137,7 @@ struct ProviderState {
             isRefreshing = false
         }
     }
-    func connectClaude() { refresh(manual: true, claudePrompt: true, only: .claude) }
+    func connectClaude() { refresh(claudePrompt: true, only: .claude) }
     func configureLoginItem() {
         guard !isDemo else { return }
         let bundle = Bundle.main.bundleURL

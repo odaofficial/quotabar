@@ -10,7 +10,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "OdaLimitsCore", linkerSettings: [.linkedFramework("Security"), .linkedLibrary("sqlite3")]),
-        .executableTarget(name: "OdaLimits", dependencies: ["OdaLimitsCore"], linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("ServiceManagement")]),
+        .executableTarget(name: "OdaLimits", dependencies: ["OdaLimitsCore"], resources: [.copy("Resources")], linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("ServiceManagement")]),
         .testTarget(name: "OdaLimitsCoreTests", dependencies: ["OdaLimitsCore"])
     ]
 )
